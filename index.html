@@ -588,26 +588,49 @@
             let enemySkillsLeft = document.querySelectorAll(`.${myRole === 1 ? 'boss' : 'player'}-skill:not(.used)`).length;
             if (mySkillsLeft > 0 || enemySkillsLeft > 0) return false;
 
-            // 3. 幾何死鎖掃描：沒有技能的情況下，如果盤面上所有連成 5 顆的路線都被對方污染，絕對平手
+            // 3. 幾何死鎖掃描（升級版）：不僅判斷路線是否乾淨，還計算剩餘步數極限
+            let totalEmpty = 0;
+            for(let y=0; y<8; y++) for(let x=0; x<8; x++) if(boardState[y][x] === 0) totalEmpty++;
+
+            // 計算雙方在遊戲結束前，極限還能分配到幾步
+            let maxMovesP1 = Math.ceil(totalEmpty / 2);
+            let maxMovesP2 = Math.floor(totalEmpty / 2);
+            if (currentPlayer === 2) {
+                maxMovesP1 = Math.floor(totalEmpty / 2);
+                maxMovesP2 = Math.ceil(totalEmpty / 2);
+            }
+
             const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
             for (let y = 0; y < 8; y++) {
                 for (let x = 0; x < 8; x++) {
                     for (let d of dirs) {
                         let p1CanWin = true, p2CanWin = true;
+                        let p1Need = 0, p2Need = 0; // 紀錄要填滿這條線，自己還差幾步
+
                         for (let s = 0; s < 5; s++) {
                             let nx = x + d[0]*s, ny = y + d[1]*s;
                             if (nx>=0 && nx<8 && ny>=0 && ny<8) {
-                                if (boardState[ny][nx] === 1) p2CanWin = false;
-                                if (boardState[ny][nx] === 2) p1CanWin = false;
+                                if (boardState[ny][nx] === 1) {
+                                    p2CanWin = false; // 被動物聯軍擋住，老闆無法贏
+                                } else if (boardState[ny][nx] === 2) {
+                                    p1CanWin = false; // 被老闆擋住，動物聯軍無法贏
+                                } else {
+                                    // 是空格，雙方如果要贏這條線，都需要多花一步來填
+                                    p1Need++;
+                                    p2Need++;
+                                }
                             } else {
                                 p1CanWin = false; p2CanWin = false;
                             }
                         }
-                        if (p1CanWin || p2CanWin) return false; 
+                        
+                        // 關鍵防漏：不僅不能被對手擋住，還必須「自己的剩餘步數大於或等於填滿這條線所需的步數」
+                        if (p1CanWin && p1Need <= maxMovesP1) return false; 
+                        if (p2CanWin && p2Need <= maxMovesP2) return false; 
                     }
                 }
             }
-            return true; 
+            return true; // 絕對平手 
         }
 
         function checkGlobalWin() {
