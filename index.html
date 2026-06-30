@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>立體五子棋：特殊對決</title>
+    <style>
+        :root {
+            --bg-color: #ecf0f1;
+            --btn-color: #3498db;
+            --btn-hover: #2980b9;
+            --boss-color: #c0392b;
+            --player-color: #27ae60;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0; height: 100vh; overflow: hidden; user-select: none;
+            touch-action: manipulation; 
+        }
+
+        /* ===== 視圖切換 ===== */
+        .view-section { display: none; width: 100%; height: 100%; }
+        .view-section.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* ===== 大廳選單 UI ===== */
+        .menu-container {
+            background: white; padding: 30px; border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; width: 90%; max-width: 400px;
+        }
+        h1 { color: #2c3e50; font-size: 24px; }
+        .menu-btn {
+            display: block; width: 100%; padding: 12px; margin: 10px 0; font-size: 16px; font-weight: bold;
+            color: white; background-color: var(--btn-color); border: none; border-radius: 8px; cursor: pointer;
+        }
+        .back-btn { background-color: #95a5a6; }
+        
+        /* 真人對戰輸入框 */
+        .input-group { display: flex; gap: 10px; margin-top: 15px; }
+        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
+
+        /* ===== 遊戲本體 UI ===== */
+        #game-view { justify-content: space-between; padding: 10px 0; }
+        
+        /* 頂部：Boss 區域 */
+        #boss-area {
+            width: 100%; text-align: center; padding: 10px; background: rgba(255,255,255,0.9);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status-text { margin: 5px 0; font-weight: bold; font-size: 16px; }
+        .skill-bar { display: flex; justify-content: center; gap: 10px; margin-top: 5px; flex-wrap: wrap; }
+        
+        /* 加入 white-space: nowrap 防止手機文字被擠壓換行或消失 */
+        .skill-btn {
+            padding: 8px 12px; border: 2px solid #bdc3c7; border-radius: 6px; background: #fff;
+            font-weight: bold; font-size: 14px; transition: 0.2s; white-space: nowrap;
+        }
+        .boss-skill { border-color: #e74c3c; background: #fdedec; color: #c0392b; }
+        .player-skill { cursor: pointer; }
+        .player-skill.active-skill { border-color: var(--player-color); background: #e9f7ef; transform: translateY(-3px); box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .skill-btn.used { opacity: 0.3; filter: grayscale(100%); pointer-events: none; }
+
+        /* 中間：2.5D 棋盤 */
+        #game-container { display: flex; justify-content: center; align-items: center; flex: 1; }
+        #board {
+            display: grid; grid-template-columns: repeat(8, 45px); grid-template-rows: repeat(8, 45px);
+            background: #d4a373; box-shadow: 5px 10px 20px rgba(0,0,0,0.3);
+            border-top: 2px solid #e6ba8a; border-left: 2px solid #e6ba8a;
+            border-bottom: 8px solid #8b5a2b; border-right: 8px solid #704722; border-radius: 4px;
+        }
+        .cell { width: 45px; height: 45px; border: 1px solid rgba(139, 90, 43, 0.4); position: relative; cursor: pointer; }
+        
+        /* 底部：玩家區域 */
+        #player-area {
+            width: 100%; text-align: center; padding: 10px 10px 20px 10px; background: rgba(255,255,255,0.9);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 棋子與特殊造型 */
+        .piece {
+            width: 34px; height: 34px; border-radius: 50%; position: absolute; top: 4px; left: 4px;
+            box-shadow: 2px 4px 6px rgba(0,0,0,0.5), inset -2px -2px 4px rgba(0,0,0,0.3);
+            pointer-events: none; display: flex; justify-content: center; align-items: center;
+        }
+        .player-piece { background: radial-gradient(circle at 30% 30%, #e0f7fa, #26a69a 60%, #004d40); }
+        .ai-piece { background: radial-gradient(circle at 30% 30%, #ffebee, #ef5350 60%, #b71c1c); }
+        .special-model { font-size: 24px; filter: drop-shadow(2px 3px 2px rgba(0,0,0,0.5)); transform: translateY(-5px); }
+
+        /* 手機適配 */
+        @media (max-width: 400px) {
+            #board { grid-template-columns: repeat(8, 11vw); grid-template-rows: repeat(8, 11vw); }
+            .cell { width: 11vw; height: 11vw; }
+            .piece { width: 8vw; height: 8vw; }
+            .special-model { font-size: 5vw; }
+            .skill-btn { padding: 5px 8px; font-size: 12px; }
+        }
+
+        /* 特效動畫 */
+        @keyframes dangerFlash { 50% { background-color: rgba(255,65,54,0.4); box-shadow: inset 0 0 15px red; } }
+        .cell-danger { animation: dangerFlash 2.5s forwards; }
+        @keyframes pieceShatter { 20% { transform: scale(1.3); filter: brightness(2); } 100% { transform: scale(0) rotate(720deg) translateY(-30px); opacity: 0; filter: blur(5px); } }
+        .piece-shatter { animation: pieceShatter 2.5s forwards; }
+        @keyframes mysticSwirl { 50% { box-shadow: inset 0 0 30px rgba(142,68,173,0.9); } }
+        .cell-mystic { animation: mysticSwirl 2.5s forwards; }
+        @keyframes waterDye { 50% { filter: contrast(2) blur(3px) drop-shadow(0 0 15px #8e44ad); transform: scale(1.1); } }
+        .piece-dyeing { animation: waterDye 2.5s forwards; }
+        .shielded-state { border: 2px solid #f1c40f !important; }
+        @keyframes slashMark { 100% { background-position: 0 100%; background-color: rgba(255,0,0,0.3); } }
+        .cell-slash { background: linear-gradient(45deg, transparent 45%, white 48%, white 52%, transparent 55%); background-size: 200% 200%; background-position: 100% 0; animation: slashMark 0.5s forwards; }
+        @keyframes pieceCut { 30% { transform: scaleX(1.2) scaleY(0.8) skewX(-20deg); filter: brightness(2); } 100% { transform: translateX(20px) scale(0); opacity: 0; } }
+        .piece-cut { animation: pieceCut 0.5s forwards; }
+        @keyframes windVortex { 50% { box-shadow: inset 0 0 25px #3498db; background: rgba(52,152,219,0.3); } 100% { transform: rotate(360deg); } }
+        .cell-wind { animation: windVortex 1s forwards; border-radius: 50%; }
+        @keyframes pieceSpinOut { 50% { transform: scale(0.5) rotate(180deg) translateY(-20px); opacity: 0.5; } 100% { transform: scale(0) rotate(360deg); opacity: 0; } }
+        .piece-spin-out { animation: pieceSpinOut 0.5s forwards; }
+    </style>
+</head>
+<body>
+
+    <div id="main-view" class="view-section active">
+        <div class="menu-container">
+            <h1>立體五子棋：特殊對決</h1>
+            <p style="font-size: 14px; color: #7f8c8d;">動物聯軍 vs 萃比老闆</p>
+            <button class="menu-btn" onclick="switchView('tutorial-view')">📖 技能手冊</button>
+            <button class="menu-btn" onclick="startComputerGame()">🤖 電腦對戰</button>
+            <button class="menu-btn" onclick="switchView('pvp-view')">👥 真人對決</button>
+        </div>
+    </div>
+
+    <div id="tutorial-view" class="view-section">
+        <div class="menu-container" style="text-align: left; font-size: 14px;">
+            <h2 style="text-align: center;">特殊棋子指南</h2>
+            <p><strong>👑 皇冠：</strong>無差別炸毀周圍 8 格。</p>
+            <p><strong>🪄 魔法杖：</strong>周圍 8 格敵人化為我方。</p>
+            <p><strong>🛡️ 盾牌：</strong>周圍 8 格獲得絕對防禦。</p>
+            <p><strong>🗡️ 小刀：</strong>瞬間移除周圍 8 格敵人。</p>
+            <p><strong>🌪️ 旋風：</strong>周圍 8 格順時針旋轉一格。</p>
+            <button class="menu-btn back-btn" onclick="switchView('main-view')">返回大廳</button>
+        </div>
+    </div>
+
+    <div id="pvp-view" class="view-section">
+        <div class="menu-container">
+            <h2 style="color: var(--btn-color);">真人連線對決</h2>
+            <p style="font-size: 14px; color: #7f8c8d;">(後端伺服器建置中，敬請期待)</p>
+            <button class="menu-btn" onclick="alert('房間系統準備中...')">建立新房間</button>
+            <div class="input-group">
+                <input type="text" id="roomCode" placeholder="請輸入房號 (如: 1234)">
+                <button class="menu-btn" style="margin: 0; width: auto;" onclick="alert('查無此房號！')">加入</button>
+            </div>
+            <button class="menu-btn back-btn" onclick="switchView('main-view')" style="margin-top: 20px;">返回大廳</button>
+        </div>
+    </div>
+
+    <div id="game-view" class="view-section">
+        
+        <div id="boss-area">
+            <div class="status-text" id="boss-status">對手：萃比老闆 (技能已準備就緒)</div>
+            <div class="skill-bar" id="boss-inventory" style="display: none;"></div>
+        </div>
+
+        <div id="game-container"><div id="board"></div></div>
+
+        <div id="player-area">
+            <div class="status-text" id="player-status" style="color: var(--player-color);">換你囉！請先點擊選擇 3 個特殊棋子</div>
+            
+            <div id="draft-phase">
+                <div class="skill-bar">
+                    <button class="skill-btn player-skill" onclick="selectPiece('皇冠')">👑 皇冠</button>
+                    <button class="skill-btn player-skill" onclick="selectPiece('魔法杖')">🪄 法杖</button>
+                    <button class="skill-btn player-skill" onclick="selectPiece('盾牌')">🛡️ 盾牌</button>
+                    <button class="skill-btn player-skill" onclick="selectPiece('小刀')">🗡️ 小刀</button>
+                    <button class="skill-btn player-skill" onclick="selectPiece('旋風')">🌪️ 旋風</button>
+                </div>
+            </div>
+
+            <div id="coin-phase" style="display: none;">
+                <button class="menu-btn" onclick="flipCoin()" style="padding: 10px; margin: 0 auto; width: auto; background-color: var(--player-color);">🎲 技能已鎖定，點此擲硬幣開局！</button>
+            </div>
+
+            <div id="player-inventory" class="skill-bar" style="display: none;"></div>
+
+            <div id="endgame-buttons" style="display: none; justify-content: center; gap: 15px; margin-top: 15px;">
+                <button class="skill-btn" style="background: var(--player-color); color: white; border:none; padding: 10px 20px; font-size: 16px;" onclick="startComputerGame()">🔄 再來一局</button>
+                <button class="skill-btn" style="background: #95a5a6; color: white; border:none; padding: 10px 20px; font-size: 16px;" onclick="location.reload()">🚪 返回大廳</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.getElementById(viewId).classList.add('active');
+        }
+
+        const boardElement = document.getElementById('board');
+        const skillIcons = { '皇冠': '👑', '魔法杖': '🪄', '盾牌': '🛡️', '小刀': '🗡️', '旋風': '🌪️' };
+        let playerDraft = [], aiDraft = [];
+        let currentPlayer = '', gameActive = false, activeSkill = null;
+        let boardState, shieldState, iconState;
+
+        function startComputerGame() {
+            switchView('game-view');
+            resetGameEnvironment();
+        }
+
+        function resetGameEnvironment() {
+            boardState = Array(8).fill(null).map(() => Array(8).fill(0)); 
+            shieldState = Array(8).fill(null).map(() => Array(8).fill(false));
+            iconState = Array(8).fill(null).map(() => Array(8).fill(''));
+            
+            playerDraft = [];
+            document.getElementById('draft-phase').style.display = 'block';
+            document.getElementById('coin-phase').style.display = 'none';
+            document.getElementById('player-inventory').style.display = 'none';
+            document.getElementById('player-inventory').innerHTML = '';
+            document.getElementById('boss-inventory').style.display = 'none';
+            document.getElementById('endgame-buttons').style.display = 'none';
+            
+            document.getElementById('player-status').innerText = '換你囉！請先點擊選擇 3 個特殊棋子';
+            document.getElementById('boss-status').innerText = '對手：萃比老闆 (技能已準備就緒)';
+            document.getElementById('boss-status').style.color = 'black';
+            
+            boardElement.innerHTML = '';
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x; cell.dataset.y = y;
+                    cell.onclick = () => handleCellClick(x, y);
+                    boardElement.appendChild(cell);
+                }
+            }
+
+            const aiPool = ['皇冠', '皇冠', '小刀', '小刀', '旋風', '魔法杖']; 
+            aiDraft = aiPool.sort(() => 0.5 - Math.random()).slice(0, 3);
+        }
+
+        function selectPiece(piece) {
+            if (playerDraft.length < 3 && !playerDraft.includes(piece)) {
+                playerDraft.push(piece);
+                document.getElementById('player-status').innerText = `已選：${playerDraft.join(', ')} (還差 ${3 - playerDraft.length} 個)`;
+                if (playerDraft.length === 3) {
+                    document.getElementById('draft-phase').style.display = 'none';
+                    document.getElementById('coin-phase').style.display = 'block';
+                    document.getElementById('player-status').innerText = '✨ 準備完成！';
+                }
+            }
+        }
+
+        function flipCoin() {
+            currentPlayer = Math.random() > 0.5 ? 'Player' : 'AI';
+            document.getElementById('coin-phase').style.display = 'none';
+            
+            const pInv = document.getElementById('player-inventory');
+            pInv.style.display = 'flex';
+            playerDraft.forEach(skill => {
+                let btn = document.createElement('div');
+                btn.className = 'skill-btn player-skill';
+                btn.innerText = `${skillIcons[skill]} ${skill}`;
+                btn.dataset.skill = skill;
+                btn.onclick = () => toggleSkill(skill, btn);
+                pInv.appendChild(btn);
+            });
+
+            const bInv = document.getElementById('boss-inventory');
+            bInv.innerHTML = '';
+            bInv.style.display = 'flex';
+            aiDraft.forEach((skill, idx) => {
+                let btn = document.createElement('div');
+                btn.className = 'skill-btn boss-skill';
+                btn.id = `boss-skill-${idx}`;
+                btn.innerText = `${skillIcons[skill]} ???`; 
+                btn.dataset.trueskill = skill;
+                bInv.appendChild(btn);
+            });
+
+            gameActive = true;
+            updateTurnText();
+            if (currentPlayer === 'AI') setTimeout(aiBrain, 1000);
+        }
+
+        function updateTurnText() {
+            if(currentPlayer === 'Player') {
+                document.getElementById('player-status').innerText = '👉 你的回合 (請落子或發動技能)';
+                document.getElementById('player-status').style.color = 'var(--player-color)';
+                document.getElementById('boss-status').innerText = '萃比老闆 (等待中)';
+                document.getElementById('boss-status').style.color = 'black';
+            } else {
+                document.getElementById('player-status').innerText = '動物聯軍 (等待中)';
+                document.getElementById('player-status').style.color = 'black';
+                document.getElementById('boss-status').innerText = '⚡ 萃比老闆思考中...';
+                document.getElementById('boss-status').style.color = 'var(--boss-color)';
+            }
+        }
+
+        function toggleSkill(skillName, btnElement) {
+            if(!gameActive || currentPlayer !== 'Player' || btnElement.classList.contains('used')) return;
+            if(activeSkill === skillName) {
+                activeSkill = null; btnElement.classList.remove('active-skill'); return;
+            }
+            document.querySelectorAll('.player-skill').forEach(el => el.classList.remove('active-skill'));
+            activeSkill = skillName; btnElement.classList.add('active-skill');
+        }
+
+        function handleCellClick(x, y) {
+            if (!gameActive || currentPlayer !== 'Player' || boardState[y][x] !== 0) return;
+            if (activeSkill) castSpecialSkill(x, y, activeSkill, 1);
+            else { placePiece(x, y, 1); endTurn(); }
+        }
+
+        function placePiece(x, y, playerType) {
+            boardState[y][x] = playerType; renderCell(x, y);
+        }
+
+        function renderCell(x, y) {
+            let cell = document.querySelector(`.cell[data-x="${x}"][data-y="${y}"]`);
+            let oldPiece = cell.querySelector('.piece');
+            if(oldPiece) cell.removeChild(oldPiece);
+            
+            let type = boardState[y][x];
+            if(type !== 0) {
+                let piece = document.createElement('div');
+                piece.className = 'piece ' + (type === 1 ? 'player-piece' : 'ai-piece');
+                if(iconState[y][x] !== '') {
+                    let icon = document.createElement('div');
+                    icon.className = 'special-model'; icon.innerText = iconState[y][x];
+                    piece.appendChild(icon);
+                }
+                cell.appendChild(piece);
+            }
+            if(shieldState[y][x]) cell.classList.add('shielded-state');
+            else cell.classList.remove('shielded-state');
+        }
+
+        function getNeighbors(cx, cy) {
+            let neighbors = [];
+            [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].forEach(d => {
+                let nx = cx + d[0], ny = cy + d[1];
+                if (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) neighbors.push({x: nx, y: ny});
+            });
+            return neighbors;
+        }
+
+        function castSpecialSkill(x, y, skill, playerType) {
+            iconState[y][x] = skillIcons[skill];
+            placePiece(x, y, playerType);
+            gameActive = false; 
+            
+            if(playerType === 1) {
+                document.querySelector('.active-skill').classList.add('used');
+                document.querySelector('.active-skill').classList.remove('active-skill');
+                activeSkill = null;
+            }
+
+            let neighbors = getNeighbors(x, y);
+            let msgStr = playerType === 1 ? "動物聯軍" : "萃比老闆";
+
+            if (skill === '皇冠') {
+                updateStatusText(playerType, `👑 ${msgStr}發動全域爆破！`);
+                neighbors.forEach(n => {
+                    if(shieldState[n.y][n.x]) return;
+                    let cell = document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`);
+                    cell.classList.add('cell-danger');
+                    let p = cell.querySelector('.piece'); if(p) p.classList.add('piece-shatter');
+                });
+                setTimeout(() => {
+                    neighbors.forEach(n => {
+                        if(!shieldState[n.y][n.x]) { boardState[n.y][n.x] = 0; renderCell(n.x, n.y); }
+                        document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-danger');
+                    });
+                    resumeGame();
+                }, 2500);
+            } 
+            else if (skill === '魔法杖') {
+                updateStatusText(playerType, `🪄 ${msgStr}發動意識覆寫！`);
+                let targetEnemy = playerType === 1 ? 2 : 1;
+                let targets = neighbors.filter(n => boardState[n.y][n.x] === targetEnemy && !shieldState[n.y][n.x]);
+                targets.forEach(n => {
+                    let cell = document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`);
+                    cell.classList.add('cell-mystic');
+                    let p = cell.querySelector('.piece'); if(p) p.classList.add('piece-dyeing');
+                });
+                setTimeout(() => targets.forEach(n => boardState[n.y][n.x] = playerType), 1250);
+                setTimeout(() => {
+                    targets.forEach(n => {
+                        renderCell(n.x, n.y);
+                        document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-mystic');
+                    });
+                    resumeGame();
+                }, 2500);
+            }
+            else if (skill === '盾牌') {
+                updateStatusText(playerType, `🛡️ ${msgStr}展開防禦陣地！`);
+                neighbors.forEach(n => {
+                    shieldState[n.y][n.x] = true;
+                    document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.add('cell-shield');
+                });
+                setTimeout(() => {
+                    neighbors.forEach(n => {
+                        document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-shield');
+                        renderCell(n.x, n.y);
+                    });
+                    resumeGame();
+                }, 1500);
+            }
+            else if (skill === '小刀') {
+                updateStatusText(playerType, `🗡️ ${msgStr}無情斬擊！`);
+                let targetEnemy = playerType === 1 ? 2 : 1;
+                let targets = neighbors.filter(n => boardState[n.y][n.x] === targetEnemy && !shieldState[n.y][n.x]);
+                targets.forEach(n => {
+                    let cell = document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`);
+                    cell.classList.add('cell-slash');
+                    let p = cell.querySelector('.piece'); if(p) p.classList.add('piece-cut');
+                });
+                setTimeout(() => {
+                    targets.forEach(n => {
+                        boardState[n.y][n.x] = 0; renderCell(n.x, n.y);
+                        document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-slash');
+                    });
+                    resumeGame();
+                }, 600);
+            }
+            else if (skill === '旋風') {
+                updateStatusText(playerType, `🌪️ ${msgStr}扭曲了空間！`);
+                const ring = [{dx:0,dy:-1},{dx:1,dy:-1},{dx:1,dy:0},{dx:1,dy:1},{dx:0,dy:1},{dx:-1,dy:1},{dx:-1,dy:0},{dx:-1,dy:-1}];
+                let validPos = [], origVals = [], origIcons = [];
+                ring.forEach(offset => {
+                    let nx = x + offset.dx, ny = y + offset.dy;
+                    if(nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
+                        validPos.push({x: nx, y: ny}); origVals.push(boardState[ny][nx]); origIcons.push(iconState[ny][nx]);
+                        let cell = document.querySelector(`.cell[data-x="${nx}"][data-y="${ny}"]`);
+                        cell.classList.add('cell-wind');
+                        let p = cell.querySelector('.piece'); if(p) p.classList.add('piece-spin-out');
+                    }
+                });
+                if(validPos.length > 1) { origVals.unshift(origVals.pop()); origIcons.unshift(origIcons.pop()); }
+                setTimeout(() => {
+                    validPos.forEach((pos, idx) => {
+                        boardState[pos.y][pos.x] = origVals[idx]; iconState[pos.y][pos.x] = origIcons[idx];
+                        let cell = document.querySelector(`.cell[data-x="${pos.x}"][data-y="${pos.y}"]`);
+                        cell.classList.remove('cell-wind'); renderCell(pos.x, pos.y);
+                    });
+                    resumeGame();
+                }, 1000);
+            }
+        }
+
+        function updateStatusText(playerType, text) {
+            if(playerType === 1) document.getElementById('player-status').innerText = text;
+            else document.getElementById('boss-status').innerText = text;
+        }
+
+        function checkGlobalWin() {
+            const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    let p = boardState[y][x]; if (p === 0) continue;
+                    for (let d of dirs) {
+                        let count = 1;
+                        for (let s = 1; s < 5; s++) {
+                            let nx = x + d[0]*s, ny = y + d[1]*s;
+                            if (nx>=0 && nx<8 && ny>=0 && ny<8 && boardState[ny][nx] === p) count++; else break;
+                        }
+                        if (count >= 5) return p; 
+                    }
+                }
+            }
+            return 0; 
+        }
+
+        function handleGameOver(winner) {
+            gameActive = false;
+            let msg = winner === 1 ? "🎉 動物聯軍勝利！擊敗慣老闆！" : "💀 萃比老闆獲勝！被死死壓榨...";
+            
+            document.getElementById('boss-status').innerText = msg;
+            document.getElementById('boss-status').style.color = winner === 1 ? 'var(--player-color)' : 'var(--boss-color)';
+            document.getElementById('player-status').innerText = "遊戲結束";
+            
+            // 【修復 1】遊戲結束時，強制翻開老闆所有未使用的底牌
+            document.querySelectorAll('.boss-skill').forEach(btn => {
+                let trueSkill = btn.dataset.trueskill;
+                btn.innerText = `${skillIcons[trueSkill]} ${trueSkill}`;
+                // 如果這招沒用到，加點透明度讓玩家知道這是剩餘手牌
+                if(!btn.classList.contains('used')) {
+                    btn.style.opacity = '0.7';
+                }
+            });
+
+            // 【修復 2】改用 flex 讓按鈕正常並排顯示
+            document.getElementById('endgame-buttons').style.display = 'flex';
+        }
+
+        function endTurn() {
+            let winner = checkGlobalWin();
+            if(winner !== 0) return handleGameOver(winner);
+            currentPlayer = currentPlayer === 'Player' ? 'AI' : 'Player';
+            updateTurnText();
+            if(currentPlayer === 'AI') setTimeout(aiBrain, 800);
+        }
+
+        function resumeGame() {
+            let winner = checkGlobalWin();
+            if(winner !== 0) return handleGameOver(winner);
+            gameActive = true; 
+            endTurn();
+        }
+
+        function aiBrain() {
+            if (!gameActive) return;
+            let bestScore = -1, bestMoves = [];
+            for (let y = 0; y < 8; y++) {
+                for (let x = 0; x < 8; x++) {
+                    if (boardState[y][x] === 0 && !shieldState[y][x]) {
+                        let totalScore = evaluateCell(x, y, 2) + (evaluateCell(x, y, 1) * 1.2);
+                        if (totalScore > bestScore) { bestScore = totalScore; bestMoves = [{x, y}]; } 
+                        else if (totalScore === bestScore) { bestMoves.push({x, y}); }
+                    }
+                }
+            }
+            if (bestMoves.length > 0) {
+                let move = bestMoves[Math.floor(Math.random() * bestMoves.length)];
+                
+                let uncastSkills = Array.from(document.querySelectorAll('.boss-skill:not(.used)'));
+                if (uncastSkills.length > 0 && Math.random() < 0.3) {
+                    let skillBtn = uncastSkills[Math.floor(Math.random() * uncastSkills.length)];
+                    let skillName = skillBtn.dataset.trueskill;
+                    skillBtn.classList.add('used');
+                    skillBtn.innerText = `${skillIcons[skillName]} ${skillName}`; 
+                    castSpecialSkill(move.x, move.y, skillName, 2);
+                } else {
+                    placePiece(move.x, move.y, 2);
+                    gameActive = true; 
+                    endTurn();
+                }
+            }
+        }
+
+        function evaluateCell(cx, cy, playerType) {
+            let score = 0;
+            [ [1, 0], [0, 1], [1, 1], [1, -1] ].forEach(dir => {
+                let count = 1, blockCount = 0;
+                for (let step = 1; step <= 4; step++) {
+                    let nx = cx + dir[0]*step, ny = cy + dir[1]*step;
+                    if (nx<0||nx>=8||ny<0||ny>=8||boardState[ny][nx]!==playerType) { if (nx<0||nx>=8||ny<0||ny>=8||boardState[ny][nx]!==0) blockCount++; break; } count++;
+                }
+                for (let step = 1; step <= 4; step++) {
+                    let nx = cx - dir[0]*step, ny = cy - dir[1]*step;
+                    if (nx<0||nx>=8||ny<0||ny>=8||boardState[ny][nx]!==playerType) { if (nx<0||nx>=8||ny<0||ny>=8||boardState[ny][nx]!==0) blockCount++; break; } count++;
+                }
+                if (count>=5) score+=100000; else if (count===4&&blockCount===0) score+=10000; else if (count===4&&blockCount===1) score+=1000; else if (count===3&&blockCount===0) score+=1000; else if (count===3&&blockCount===1) score+=100; else if (count===2&&blockCount===0) score+=100; else if (count===2&&blockCount===1) score+=10; else score+=1; 
+            }); return score;
+        }
+    </script>
+</body>
+</html>
