@@ -17,7 +17,10 @@
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
             background-color: var(--bg-color);
-            margin: 0; height: 100vh; overflow: hidden; user-select: none;
+            margin: 0; 
+            height: 100dvh; /* ★ 改為 100dvh，自適應手機網址列伸縮 */
+            overflow: hidden; 
+            user-select: none;
             touch-action: manipulation; 
         }
 
@@ -42,7 +45,11 @@
         input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; text-align: center; }
 
         /* ===== 遊戲本體 UI ===== */
-        #game-view { justify-content: space-between; padding: 10px 0; }
+        #game-view { 
+            justify-content: center; /* ★ 改為 center，讓內容向中間靠攏 */
+            gap: 15px;               /* ★ 設定上下區塊與棋盤之間的固定間距 */
+            padding: 10px 0; 
+        }
         
         #boss-area, #player-area {
             width: 100%; text-align: center; padding: 10px; background: rgba(255,255,255,0.95);
@@ -61,7 +68,14 @@
         .skill-btn.used { opacity: 0.3; filter: grayscale(100%); pointer-events: none; border-color: #ccc; color: #999; }
 
         /* ===== 2.5D 棋盤質感升級 ===== */
-        #game-container { display: flex; justify-content: center; align-items: center; flex: 1; perspective: 800px; }
+        #game-container { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            /* ★ 刪除原有的 flex: 1; */
+            perspective: 800px; 
+            margin: 10px 0; /* 稍微保留一點呼吸空間給 3D 陰影 */
+        }
         #board {
             display: grid; grid-template-columns: repeat(8, 45px); grid-template-rows: repeat(8, 45px);
             background: linear-gradient(135deg, #d4a373 25%, #c28e5c 50%, #d4a373 75%);
