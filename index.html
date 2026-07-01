@@ -16,7 +16,10 @@
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
             background-color: var(--bg-color);
-            margin: 0; height: 100vh; overflow: hidden; user-select: none;
+            margin: 0; 
+            height: 100dvh; /* ★ 務必改成 100dvh */
+            overflow: hidden; 
+            user-select: none;
             touch-action: manipulation; 
         }
 
@@ -41,7 +44,12 @@
         input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
 
         /* ===== 遊戲本體 UI ===== */
-        #game-view { justify-content: space-between; padding: 10px 0; }
+        /* ===== 遊戲本體 UI ===== */
+        #game-view { 
+            justify-content: center; /* ★ 改為 center */
+            gap: 15px;               /* ★ 增加區塊間距 */
+            padding: 10px 0; 
+        }
         
         /* 頂部：Boss 區域 */
         #boss-area {
@@ -62,7 +70,12 @@
         .skill-btn.used { opacity: 0.3; filter: grayscale(100%); pointer-events: none; }
 
         /* 中間：2.5D 棋盤 */
-        #game-container { display: flex; justify-content: center; align-items: center; flex: 1; }
+        #game-container { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            /* ★ 把這裡原本的 flex: 1; 徹底刪除 */
+        }
         #board {
             display: grid; grid-template-columns: repeat(8, 45px); grid-template-rows: repeat(8, 45px);
             background: #d4a373; box-shadow: 5px 10px 20px rgba(0,0,0,0.3);
