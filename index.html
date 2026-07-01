@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>立體五子棋：特殊對決</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
             --bg-color: #ecf0f1;
@@ -17,10 +16,7 @@
         body {
             font-family: 'Segoe UI', Tahoma, sans-serif;
             background-color: var(--bg-color);
-            margin: 0; 
-            height: 100dvh; /* ★ 改為 100dvh，自適應手機網址列伸縮 */
-            overflow: hidden; 
-            user-select: none;
+            margin: 0; height: 100vh; overflow: hidden; user-select: none;
             touch-action: manipulation; 
         }
 
@@ -37,75 +33,67 @@
         .menu-btn {
             display: block; width: 100%; padding: 12px; margin: 10px 0; font-size: 16px; font-weight: bold;
             color: white; background-color: var(--btn-color); border: none; border-radius: 8px; cursor: pointer;
-            transition: transform 0.1s, background-color 0.2s;
         }
-        .menu-btn:active { transform: scale(0.95); }
         .back-btn { background-color: #95a5a6; }
+        
+        /* 真人對戰輸入框 */
         .input-group { display: flex; gap: 10px; margin-top: 15px; }
-        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; text-align: center; }
+        input[type="text"] { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
 
         /* ===== 遊戲本體 UI ===== */
-        #game-view { 
-            justify-content: center; /* ★ 改為 center，讓內容向中間靠攏 */
-            gap: 15px;               /* ★ 設定上下區塊與棋盤之間的固定間距 */
-            padding: 10px 0; 
-        }
+        #game-view { justify-content: space-between; padding: 10px 0; }
         
-        #boss-area, #player-area {
-            width: 100%; text-align: center; padding: 10px; background: rgba(255,255,255,0.95);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); z-index: 10;
+        /* 頂部：Boss 區域 */
+        #boss-area {
+            width: 100%; text-align: center; padding: 10px; background: rgba(255,255,255,0.9);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
         .status-text { margin: 5px 0; font-weight: bold; font-size: 16px; }
         .skill-bar { display: flex; justify-content: center; gap: 10px; margin-top: 5px; flex-wrap: wrap; }
+        
+        /* 加入 white-space: nowrap 防止手機文字被擠壓換行或消失 */
         .skill-btn {
             padding: 8px 12px; border: 2px solid #bdc3c7; border-radius: 6px; background: #fff;
-            font-weight: bold; font-size: 14px; transition: 0.2s; white-space: nowrap; cursor: pointer;
+            font-weight: bold; font-size: 14px; transition: 0.2s; white-space: nowrap;
         }
-        .boss-skill { border-color: #e74c3c; color: #c0392b; }
-        .boss-skill.active-skill { background: #fdedec; transform: translateY(-3px); box-shadow: 0 4px 6px rgba(192,57,43,0.2); }
-        .player-skill { border-color: var(--player-color); color: var(--player-color); }
-        .player-skill.active-skill { background: #e9f7ef; transform: translateY(-3px); box-shadow: 0 4px 6px rgba(39,174,96,0.2); }
-        .skill-btn.used { opacity: 0.3; filter: grayscale(100%); pointer-events: none; border-color: #ccc; color: #999; }
+        .boss-skill { border-color: #e74c3c; background: #fdedec; color: #c0392b; }
+        .player-skill { cursor: pointer; }
+        .player-skill.active-skill { border-color: var(--player-color); background: #e9f7ef; transform: translateY(-3px); box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
+        .skill-btn.used { opacity: 0.3; filter: grayscale(100%); pointer-events: none; }
 
-        /* ===== 2.5D 棋盤質感升級 ===== */
-        #game-container { 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            /* ★ 刪除原有的 flex: 1; */
-            perspective: 800px; 
-            margin: 10px 0; /* 稍微保留一點呼吸空間給 3D 陰影 */
-        }
+        /* 中間：2.5D 棋盤 */
+        #game-container { display: flex; justify-content: center; align-items: center; flex: 1; }
         #board {
             display: grid; grid-template-columns: repeat(8, 45px); grid-template-rows: repeat(8, 45px);
-            background: linear-gradient(135deg, #d4a373 25%, #c28e5c 50%, #d4a373 75%);
-            background-size: 20px 20px;
-            box-shadow: 10px 15px 25px rgba(0,0,0,0.5), inset 0 0 20px rgba(139, 90, 43, 0.3);
-            border-top: 2px solid #f3d5b5; border-left: 2px solid #f3d5b5;
-            border-bottom: 12px solid #5c3a21; border-right: 12px solid #4a2e1a; 
-            border-radius: 6px; position: relative;
+            background: #d4a373; box-shadow: 5px 10px 20px rgba(0,0,0,0.3);
+            border-top: 2px solid #e6ba8a; border-left: 2px solid #e6ba8a;
+            border-bottom: 8px solid #8b5a2b; border-right: 8px solid #704722; border-radius: 4px;
         }
-        .cell { width: 45px; height: 45px; border: 1px solid rgba(92, 58, 33, 0.3); position: relative; cursor: pointer; }
+        .cell { width: 45px; height: 45px; border: 1px solid rgba(139, 90, 43, 0.4); position: relative; cursor: pointer; }
         
-        /* ===== 棋子材質升級 (玻璃高光) ===== */
+        /* 底部：玩家區域 */
+        #player-area {
+            width: 100%; text-align: center; padding: 10px 10px 20px 10px; background: rgba(255,255,255,0.9);
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* 棋子與特殊造型 */
         .piece {
-            width: 36px; height: 36px; border-radius: 50%; position: absolute; top: 3px; left: 3px;
-            box-shadow: 2px 4px 5px rgba(0,0,0,0.6), inset -3px -5px 6px rgba(0,0,0,0.4);
+            width: 34px; height: 34px; border-radius: 50%; position: absolute; top: 4px; left: 4px;
+            box-shadow: 2px 4px 6px rgba(0,0,0,0.5), inset -2px -2px 4px rgba(0,0,0,0.3);
             pointer-events: none; display: flex; justify-content: center; align-items: center;
         }
-        .piece::after {
-            content: ''; position: absolute; top: 15%; left: 20%; width: 30%; height: 30%;
-            background: rgba(255,255,255,0.6); border-radius: 50%; filter: blur(1px);
-        }
-        .player-piece { background: radial-gradient(circle at 40% 40%, #a8e6cf, #1abc9c 60%, #0e6655); }
-        .ai-piece { background: radial-gradient(circle at 40% 40%, #ffb6b9, #e74c3c 60%, #7b241c); }
-        .special-model { font-size: 22px; filter: drop-shadow(2px 3px 2px rgba(0,0,0,0.6)); transform: translateY(-4px); z-index: 2; }
+        .player-piece { background: radial-gradient(circle at 30% 30%, #e0f7fa, #26a69a 60%, #004d40); }
+        .ai-piece { background: radial-gradient(circle at 30% 30%, #ffebee, #ef5350 60%, #b71c1c); }
+        .special-model { font-size: 24px; filter: drop-shadow(2px 3px 2px rgba(0,0,0,0.5)); transform: translateY(-5px); }
 
+        /* 手機適配 */
         @media (max-width: 400px) {
-            #board { grid-template-columns: repeat(8, 11vw); grid-template-rows: repeat(8, 11vw); border-bottom-width: 8px; border-right-width: 8px; }
+            #board { grid-template-columns: repeat(8, 11vw); grid-template-rows: repeat(8, 11vw); }
             .cell { width: 11vw; height: 11vw; }
-            .piece { width: 8.5vw; height: 8.5vw; }
-            .special-model { font-size: 5.5vw; }
+            .piece { width: 8vw; height: 8vw; }
+            .special-model { font-size: 5vw; }
+            .skill-btn { padding: 5px 8px; font-size: 12px; }
         }
 
         /* 特效動畫 */
@@ -117,7 +105,7 @@
         .cell-mystic { animation: mysticSwirl 2.5s forwards; }
         @keyframes waterDye { 50% { filter: contrast(2) blur(3px) drop-shadow(0 0 15px #8e44ad); transform: scale(1.1); } }
         .piece-dyeing { animation: waterDye 2.5s forwards; }
-        .shielded-state { border: 2px solid #f1c40f !important; box-shadow: inset 0 0 10px rgba(241,196,15,0.3); }
+        .shielded-state { border: 2px solid #f1c40f !important; }
         @keyframes slashMark { 100% { background-position: 0 100%; background-color: rgba(255,0,0,0.3); } }
         .cell-slash { background: linear-gradient(45deg, transparent 45%, white 48%, white 52%, transparent 55%); background-size: 200% 200%; background-position: 100% 0; animation: slashMark 0.5s forwards; }
         @keyframes pieceCut { 30% { transform: scaleX(1.2) scaleY(0.8) skewX(-20deg); filter: brightness(2); } 100% { transform: translateX(20px) scale(0); opacity: 0; } }
@@ -135,8 +123,8 @@
             <h1>立體五子棋：特殊對決</h1>
             <p style="font-size: 14px; color: #7f8c8d;">動物聯軍 vs 萃比老闆</p>
             <button class="menu-btn" onclick="switchView('tutorial-view')">📖 技能手冊</button>
-            <button class="menu-btn" onclick="startComputerGame()">🤖 單機訓練 (對戰 AI)</button>
-            <button class="menu-btn" onclick="switchView('pvp-lobby-view')" style="background-color: #8e44ad;">👥 真人連線對戰</button>
+            <button class="menu-btn" onclick="startComputerGame()">🤖 電腦對戰</button>
+            <button class="menu-btn" onclick="switchView('pvp-view')">👥 真人對決</button>
         </div>
     </div>
 
@@ -152,53 +140,50 @@
         </div>
     </div>
 
-    <div id="pvp-lobby-view" class="view-section">
+    <div id="pvp-view" class="view-section">
         <div class="menu-container">
-            <h2 style="color: #8e44ad;">WebRTC 真人對決</h2>
-            <p style="font-size: 13px; color: #7f8c8d;">建立房間者為「動物聯軍」，加入者為「萃比老闆」</p>
-            
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-                <p style="margin: 0 0 10px 0; font-weight: bold;">📍 建立新房間</p>
-                <button class="menu-btn" id="host-btn" onclick="hostRoom()" style="background-color: var(--player-color);">產生 4 位數房號</button>
-                <p id="room-id-display" style="font-size: 18px; font-weight: bold; color: #d35400; margin: 10px 0; display: none;"></p>
-            </div>
-
-            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px;">
-                <p style="margin: 0 0 10px 0; font-weight: bold;">🔗 加入朋友的房間</p>
-                <div class="input-group">
-                    <input type="text" id="joinCode" placeholder="貼上 4 位數房號">
-                    <button class="menu-btn" style="margin: 0; width: auto; background-color: var(--boss-color);" onclick="joinRoom()">加入</button>
-                </div>
+            <h2 style="color: var(--btn-color);">真人連線對決</h2>
+            <p style="font-size: 14px; color: #7f8c8d;">(後端伺服器建置中，敬請期待)</p>
+            <button class="menu-btn" onclick="alert('房間系統準備中...')">建立新房間</button>
+            <div class="input-group">
+                <input type="text" id="roomCode" placeholder="請輸入房號 (如: 1234)">
+                <button class="menu-btn" style="margin: 0; width: auto;" onclick="alert('查無此房號！')">加入</button>
             </div>
             <button class="menu-btn back-btn" onclick="switchView('main-view')" style="margin-top: 20px;">返回大廳</button>
         </div>
     </div>
 
     <div id="game-view" class="view-section">
+        
         <div id="boss-area">
-            <div class="status-text" id="boss-status">對手：萃比老闆 (選角中...)</div>
-            <div id="boss-draft-phase" style="display: none;">
-                <div class="skill-bar" id="boss-draft-btns"></div>
-            </div>
+            <div class="status-text" id="boss-status">對手：萃比老闆 (技能已準備就緒)</div>
             <div class="skill-bar" id="boss-inventory" style="display: none;"></div>
         </div>
 
         <div id="game-container"><div id="board"></div></div>
 
         <div id="player-area">
-            <div class="status-text" id="player-status" style="color: var(--player-color);">換你囉！請選擇 3 個特殊棋子</div>
-            <div id="player-draft-phase">
-                <div class="skill-bar" id="player-draft-btns"></div>
-            </div>
+            <div class="status-text" id="player-status" style="color: var(--player-color);">換你囉！請先點擊選擇 3 個特殊棋子</div>
             
+            <div id="draft-phase">
+                <div class="skill-bar">
+                    <button class="skill-btn player-skill" onclick="selectPiece('皇冠')">👑 皇冠</button>
+                    <button class="skill-btn player-skill" onclick="selectPiece('魔法杖')">🪄 法杖</button>
+                    <button class="skill-btn player-skill" onclick="selectPiece('盾牌')">🛡️ 盾牌</button>
+                    <button class="skill-btn player-skill" onclick="selectPiece('小刀')">🗡️ 小刀</button>
+                    <button class="skill-btn player-skill" onclick="selectPiece('旋風')">🌪️ 旋風</button>
+                </div>
+            </div>
+
             <div id="coin-phase" style="display: none;">
-                <button class="menu-btn" id="coin-btn" onclick="flipCoin()" style="padding: 10px; margin: 0 auto; width: auto; background-color: var(--player-color);">🎲 雙方已準備，擲硬幣開局！</button>
+                <button class="menu-btn" onclick="flipCoin()" style="padding: 10px; margin: 0 auto; width: auto; background-color: var(--player-color);">🎲 技能已鎖定，點此擲硬幣開局！</button>
             </div>
 
             <div id="player-inventory" class="skill-bar" style="display: none;"></div>
 
             <div id="endgame-buttons" style="display: none; justify-content: center; gap: 15px; margin-top: 15px;">
-                <button class="skill-btn" style="background: #95a5a6; color: white; border:none; padding: 10px 20px; font-size: 16px;" onclick="location.reload()">🚪 斷開連線並返回大廳</button>
+                <button class="skill-btn" style="background: var(--player-color); color: white; border:none; padding: 10px 20px; font-size: 16px;" onclick="startComputerGame()">🔄 再來一局</button>
+                <button class="skill-btn" style="background: #95a5a6; color: white; border:none; padding: 10px 20px; font-size: 16px;" onclick="location.reload()">🚪 返回大廳</button>
             </div>
         </div>
     </div>
@@ -208,246 +193,121 @@
             document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
             document.getElementById(viewId).classList.add('active');
         }
-        // ===== 核心狀態變數 =====
+
         const boardElement = document.getElementById('board');
         const skillIcons = { '皇冠': '👑', '魔法杖': '🪄', '盾牌': '🛡️', '小刀': '🗡️', '旋風': '🌪️' };
-        const allSkills = Object.keys(skillIcons);
-        
+        let playerDraft = [], aiDraft = [];
+        let currentPlayer = '', gameActive = false, activeSkill = null;
         let boardState, shieldState, iconState;
-        let gameMode = 'AI'; 
-        let myRole = 1; 
-        let currentPlayer = 1, gameActive = false, activeSkill = null;
-        let myDraft = [], enemyDraft = [];
-        let pvpReadyCount = 0;
 
-        // ===== PeerJS 網路通訊層 (4位數房號) =====
-        let peer = null, conn = null;
-
-        function hostRoom() {
-            // 隨機產生 4 位數房號
-            let roomId = Math.floor(1000 + Math.random() * 9000).toString();
-            if(peer) peer.destroy(); // 清理舊連線
-            peer = new Peer(roomId);
-            
-            let btn = document.getElementById('host-btn');
-            btn.innerText = "產生中...";
-            
-            peer.on('open', id => {
-                btn.style.display = 'none';
-                let display = document.getElementById('room-id-display');
-                display.style.display = 'block';
-                display.innerText = "你的房號: " + id + "\n(等待對手加入...)";
-            });
-
-            // 防呆：如果剛好 4 位數被占用，背景自動重抽
-            peer.on('error', err => {
-                if(err.type === 'unavailable-id') {
-                    hostRoom(); 
-                } else {
-                    alert("連線發生錯誤：" + err);
-                    btn.innerText = "產生 4 位數房號";
-                }
-            });
-
-            peer.on('connection', c => {
-                conn = c;
-                setupConnectionHandlers();
-                gameMode = 'PVP'; myRole = 1; 
-                alert("對手已連線！");
-                startGameEnvironment();
-            });
-        }
-
-        function joinRoom() {
-            let code = document.getElementById('joinCode').value.trim();
-            if(!code || code.length !== 4) return alert("請輸入 4 位數有效房號！");
-            
-            if(peer) peer.destroy();
-            peer = new Peer(); // 加入者不需要特定 ID
-            
-            peer.on('open', () => {
-                conn = peer.connect(code);
-                conn.on('open', () => {
-                    setupConnectionHandlers();
-                    gameMode = 'PVP'; myRole = 2; // 加入者固定為萃比老闆
-                    startGameEnvironment();
-                });
-                conn.on('error', err => alert("無法連線至該房號，請確認後重試。"));
-            });
-        }
-
-        function setupConnectionHandlers() {
-            conn.on('data', data => {
-                if(data.type === 'DRAFT_READY') {
-                    enemyDraft = data.skills;
-                    pvpReadyCount++;
-                    checkPvPStart();
-                } else if(data.type === 'START') {
-                    currentPlayer = data.firstPlayer;
-                    executeStartGame();
-                } else if(data.type === 'MOVE') {
-                    placePiece(data.x, data.y, data.role);
-                    endTurn();
-                } else if(data.type === 'SKILL') {
-                    castSpecialSkill(data.x, data.y, data.skill, data.role);
-                } else if(data.type === 'SYNC_WIN') {
-                    handleGameOver(data.winner);
-                } else if(data.type === 'SYNC_DRAW') {
-                    handleGameOver(0);
-                }
-            });
-        }
-
-        // ===== 遊戲初始化 =====
         function startComputerGame() {
-            gameMode = 'AI'; myRole = 1;
-            startGameEnvironment();
+            switchView('game-view');
+            resetGameEnvironment();
         }
 
-        function startGameEnvironment() {
-            switchView('game-view');
+        function resetGameEnvironment() {
             boardState = Array(8).fill(null).map(() => Array(8).fill(0)); 
             shieldState = Array(8).fill(null).map(() => Array(8).fill(false));
             iconState = Array(8).fill(null).map(() => Array(8).fill(''));
-            myDraft = []; enemyDraft = []; pvpReadyCount = 0; activeSkill = null;
             
-            document.getElementById('player-inventory').style.display = 'none';
-            document.getElementById('boss-inventory').style.display = 'none';
+            playerDraft = [];
+            document.getElementById('draft-phase').style.display = 'block';
             document.getElementById('coin-phase').style.display = 'none';
+            document.getElementById('player-inventory').style.display = 'none';
+            document.getElementById('player-inventory').innerHTML = '';
+            document.getElementById('boss-inventory').style.display = 'none';
             document.getElementById('endgame-buttons').style.display = 'none';
             
-            setupDraftUI();
-
+            document.getElementById('player-status').innerText = '換你囉！請先點擊選擇 3 個特殊棋子';
+            document.getElementById('boss-status').innerText = '對手：萃比老闆 (技能已準備就緒)';
+            document.getElementById('boss-status').style.color = 'black';
+            
             boardElement.innerHTML = '';
             for (let y = 0; y < 8; y++) {
                 for (let x = 0; x < 8; x++) {
                     let cell = document.createElement('div');
-                    cell.className = 'cell'; cell.dataset.x = x; cell.dataset.y = y;
+                    cell.className = 'cell';
+                    cell.dataset.x = x; cell.dataset.y = y;
                     cell.onclick = () => handleCellClick(x, y);
                     boardElement.appendChild(cell);
                 }
             }
 
-            if(gameMode === 'AI') {
-                enemyDraft = allSkills.sort(() => 0.5 - Math.random()).slice(0, 3);
-            }
-        }
-
-        function setupDraftUI() {
-            let pArea = document.getElementById('player-draft-phase');
-            let bArea = document.getElementById('boss-draft-phase');
-            let pStatus = document.getElementById('player-status');
-            let bStatus = document.getElementById('boss-status');
-            
-            pArea.style.display = 'none'; bArea.style.display = 'none';
-            document.getElementById('player-draft-btns').innerHTML = '';
-            document.getElementById('boss-draft-btns').innerHTML = '';
-
-            let html = allSkills.map(s => `<button class="skill-btn ${myRole === 1 ? 'player-skill' : 'boss-skill'}" onclick="selectPiece('${s}')">${skillIcons[s]} ${s}</button>`).join('');
-
-            if(myRole === 1) {
-                pArea.style.display = 'block';
-                document.getElementById('player-draft-btns').innerHTML = html;
-                pStatus.innerText = '動物聯軍：請選擇 3 個特殊棋子';
-                bStatus.innerText = gameMode === 'AI' ? '萃比老闆 (已鎖定技能)' : '萃比老闆 (選角中...)';
-            } else {
-                bArea.style.display = 'block';
-                document.getElementById('boss-draft-btns').innerHTML = html;
-                bStatus.innerText = '萃比老闆：請選擇 3 個特殊棋子';
-                pStatus.innerText = '動物聯軍 (選角中...)';
-            }
+            const aiPool = ['皇冠', '皇冠', '小刀', '小刀', '旋風', '魔法杖']; 
+            aiDraft = aiPool.sort(() => 0.5 - Math.random()).slice(0, 3);
         }
 
         function selectPiece(piece) {
-            if (myDraft.length < 3 && !myDraft.includes(piece)) {
-                myDraft.push(piece);
-                let statusEl = myRole === 1 ? document.getElementById('player-status') : document.getElementById('boss-status');
-                statusEl.innerText = `已選：${myDraft.join(', ')} (差 ${3 - myDraft.length} 個)`;
-                
-                if (myDraft.length === 3) {
-                    document.getElementById('player-draft-phase').style.display = 'none';
-                    document.getElementById('boss-draft-phase').style.display = 'none';
-                    statusEl.innerText = '✨ 技能準備完成！';
-                    
-                    if(gameMode === 'PVP') {
-                        conn.send({ type: 'DRAFT_READY', skills: myDraft });
-                        pvpReadyCount++;
-                        checkPvPStart();
-                    } else {
-                        document.getElementById('coin-phase').style.display = 'block';
-                    }
-                }
-            }
-        }
-
-        function checkPvPStart() {
-            if(pvpReadyCount >= 2) {
-                if(myRole === 1) { 
+            if (playerDraft.length < 3 && !playerDraft.includes(piece)) {
+                playerDraft.push(piece);
+                document.getElementById('player-status').innerText = `已選：${playerDraft.join(', ')} (還差 ${3 - playerDraft.length} 個)`;
+                if (playerDraft.length === 3) {
+                    document.getElementById('draft-phase').style.display = 'none';
                     document.getElementById('coin-phase').style.display = 'block';
-                } else {
-                    document.getElementById('boss-status').innerText = '等待房主擲硬幣開局...';
+                    document.getElementById('player-status').innerText = '✨ 準備完成！';
                 }
             }
         }
 
         function flipCoin() {
-            currentPlayer = Math.random() > 0.5 ? 1 : 2;
-            if(gameMode === 'PVP') conn.send({ type: 'START', firstPlayer: currentPlayer });
-            executeStartGame();
-        }
-
-        function executeStartGame() {
+            currentPlayer = Math.random() > 0.5 ? 'Player' : 'AI';
             document.getElementById('coin-phase').style.display = 'none';
             
-            let myInv = myRole === 1 ? document.getElementById('player-inventory') : document.getElementById('boss-inventory');
-            let myClass = myRole === 1 ? 'player-skill' : 'boss-skill';
-            myInv.style.display = 'flex';
-            myInv.innerHTML = myDraft.map(s => `<div class="skill-btn ${myClass}" onclick="toggleSkill('${s}', this)">${skillIcons[s]} ${s}</div>`).join('');
+            const pInv = document.getElementById('player-inventory');
+            pInv.style.display = 'flex';
+            playerDraft.forEach(skill => {
+                let btn = document.createElement('div');
+                btn.className = 'skill-btn player-skill';
+                btn.innerText = `${skillIcons[skill]} ${skill}`;
+                btn.dataset.skill = skill;
+                btn.onclick = () => toggleSkill(skill, btn);
+                pInv.appendChild(btn);
+            });
 
-            let enemyInv = myRole === 1 ? document.getElementById('boss-inventory') : document.getElementById('player-inventory');
-            let enemyClass = myRole === 1 ? 'boss-skill' : 'player-skill';
-            enemyInv.style.display = 'flex';
-            enemyInv.innerHTML = enemyDraft.map((s, idx) => `<div class="skill-btn ${enemyClass}" id="enemy-skill-${idx}" data-trueskill="${s}">${skillIcons[s]} ???</div>`).join('');
+            const bInv = document.getElementById('boss-inventory');
+            bInv.innerHTML = '';
+            bInv.style.display = 'flex';
+            aiDraft.forEach((skill, idx) => {
+                let btn = document.createElement('div');
+                btn.className = 'skill-btn boss-skill';
+                btn.id = `boss-skill-${idx}`;
+                btn.innerText = `${skillIcons[skill]} ???`; 
+                btn.dataset.trueskill = skill;
+                bInv.appendChild(btn);
+            });
 
             gameActive = true;
             updateTurnText();
-            if(gameMode === 'AI' && currentPlayer === 2) setTimeout(aiBrain, 1000);
+            if (currentPlayer === 'AI') setTimeout(aiBrain, 1000);
         }
 
         function updateTurnText() {
-            let pStatus = document.getElementById('player-status');
-            let bStatus = document.getElementById('boss-status');
-            
-            if(currentPlayer === 1) {
-                pStatus.innerText = '👉 動物聯軍回合'; pStatus.style.color = 'var(--player-color)';
-                bStatus.innerText = '萃比老闆 (等待中)'; bStatus.style.color = 'black';
+            if(currentPlayer === 'Player') {
+                document.getElementById('player-status').innerText = '👉 你的回合 (請落子或發動技能)';
+                document.getElementById('player-status').style.color = 'var(--player-color)';
+                document.getElementById('boss-status').innerText = '萃比老闆 (等待中)';
+                document.getElementById('boss-status').style.color = 'black';
             } else {
-                pStatus.innerText = '動物聯軍 (等待中)'; pStatus.style.color = 'black';
-                bStatus.innerText = gameMode === 'AI' ? '⚡ 萃比老闆思考中...' : '👉 萃比老闆回合'; 
-                bStatus.style.color = 'var(--boss-color)';
+                document.getElementById('player-status').innerText = '動物聯軍 (等待中)';
+                document.getElementById('player-status').style.color = 'black';
+                document.getElementById('boss-status').innerText = '⚡ 萃比老闆思考中...';
+                document.getElementById('boss-status').style.color = 'var(--boss-color)';
             }
         }
 
         function toggleSkill(skillName, btnElement) {
-            if(!gameActive || currentPlayer !== myRole || btnElement.classList.contains('used')) return;
+            if(!gameActive || currentPlayer !== 'Player' || btnElement.classList.contains('used')) return;
             if(activeSkill === skillName) {
                 activeSkill = null; btnElement.classList.remove('active-skill'); return;
             }
-            document.querySelectorAll(`.${myRole === 1 ? 'player' : 'boss'}-skill`).forEach(el => el.classList.remove('active-skill'));
+            document.querySelectorAll('.player-skill').forEach(el => el.classList.remove('active-skill'));
             activeSkill = skillName; btnElement.classList.add('active-skill');
         }
 
         function handleCellClick(x, y) {
-            if (!gameActive || currentPlayer !== myRole || boardState[y][x] !== 0) return;
-            
-            if (activeSkill) {
-                if(gameMode === 'PVP') conn.send({ type: 'SKILL', x, y, skill: activeSkill, role: myRole });
-                castSpecialSkill(x, y, activeSkill, myRole);
-            } else {
-                if(gameMode === 'PVP') conn.send({ type: 'MOVE', x, y, role: myRole });
-                placePiece(x, y, myRole);
-                endTurn();
-            }
+            if (!gameActive || currentPlayer !== 'Player' || boardState[y][x] !== 0) return;
+            if (activeSkill) castSpecialSkill(x, y, activeSkill, 1);
+            else { placePiece(x, y, 1); endTurn(); }
         }
 
         function placePiece(x, y, playerType) {
@@ -474,33 +334,31 @@
             else cell.classList.remove('shielded-state');
         }
 
-        // ===== 技能處理 =====
-        function castSpecialSkill(x, y, skill, roleType) {
+        function getNeighbors(cx, cy) {
+            let neighbors = [];
+            [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].forEach(d => {
+                let nx = cx + d[0], ny = cy + d[1];
+                if (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) neighbors.push({x: nx, y: ny});
+            });
+            return neighbors;
+        }
+
+        function castSpecialSkill(x, y, skill, playerType) {
             iconState[y][x] = skillIcons[skill];
-            placePiece(x, y, roleType);
+            placePiece(x, y, playerType);
             gameActive = false; 
             
-            if(roleType === myRole) {
-                let activeBtn = document.querySelector('.active-skill');
-                if(activeBtn) { activeBtn.classList.add('used'); activeBtn.classList.remove('active-skill'); }
+            if(playerType === 1) {
+                document.querySelector('.active-skill').classList.add('used');
+                document.querySelector('.active-skill').classList.remove('active-skill');
                 activeSkill = null;
-            } else {
-                let enemyClass = roleType === 1 ? 'player-skill' : 'boss-skill';
-                let hiddenBtn = document.querySelector(`.${enemyClass}[data-trueskill="${skill}"]:not(.used)`);
-                if(hiddenBtn) {
-                    hiddenBtn.innerText = `${skillIcons[skill]} ${skill}`;
-                    hiddenBtn.classList.add('used');
-                }
             }
 
-            let dirs = [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]];
-            let neighbors = [];
-            dirs.forEach(d => {
-                let nx = x + d[0], ny = y + d[1];
-                if (nx>=0 && nx<8 && ny>=0 && ny<8) neighbors.push({x: nx, y: ny});
-            });
+            let neighbors = getNeighbors(x, y);
+            let msgStr = playerType === 1 ? "動物聯軍" : "萃比老闆";
 
             if (skill === '皇冠') {
+                updateStatusText(playerType, `👑 ${msgStr}發動全域爆破！`);
                 neighbors.forEach(n => {
                     if(shieldState[n.y][n.x]) return;
                     let cell = document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`);
@@ -516,31 +374,40 @@
                 }, 2500);
             } 
             else if (skill === '魔法杖') {
-                let targetEnemy = roleType === 1 ? 2 : 1;
+                updateStatusText(playerType, `🪄 ${msgStr}發動意識覆寫！`);
+                let targetEnemy = playerType === 1 ? 2 : 1;
                 let targets = neighbors.filter(n => boardState[n.y][n.x] === targetEnemy && !shieldState[n.y][n.x]);
                 targets.forEach(n => {
                     let cell = document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`);
                     cell.classList.add('cell-mystic');
                     let p = cell.querySelector('.piece'); if(p) p.classList.add('piece-dyeing');
                 });
-                setTimeout(() => targets.forEach(n => boardState[n.y][n.x] = roleType), 1250);
+                setTimeout(() => targets.forEach(n => boardState[n.y][n.x] = playerType), 1250);
                 setTimeout(() => {
-                    targets.forEach(n => { renderCell(n.x, n.y); document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-mystic'); });
+                    targets.forEach(n => {
+                        renderCell(n.x, n.y);
+                        document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-mystic');
+                    });
                     resumeGame();
                 }, 2500);
             }
             else if (skill === '盾牌') {
+                updateStatusText(playerType, `🛡️ ${msgStr}展開防禦陣地！`);
                 neighbors.forEach(n => {
                     shieldState[n.y][n.x] = true;
                     document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.add('cell-shield');
                 });
                 setTimeout(() => {
-                    neighbors.forEach(n => { document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-shield'); renderCell(n.x, n.y); });
+                    neighbors.forEach(n => {
+                        document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-shield');
+                        renderCell(n.x, n.y);
+                    });
                     resumeGame();
                 }, 1500);
             }
             else if (skill === '小刀') {
-                let targetEnemy = roleType === 1 ? 2 : 1;
+                updateStatusText(playerType, `🗡️ ${msgStr}無情斬擊！`);
+                let targetEnemy = playerType === 1 ? 2 : 1;
                 let targets = neighbors.filter(n => boardState[n.y][n.x] === targetEnemy && !shieldState[n.y][n.x]);
                 targets.forEach(n => {
                     let cell = document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`);
@@ -548,11 +415,15 @@
                     let p = cell.querySelector('.piece'); if(p) p.classList.add('piece-cut');
                 });
                 setTimeout(() => {
-                    targets.forEach(n => { boardState[n.y][n.x] = 0; renderCell(n.x, n.y); document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-slash'); });
+                    targets.forEach(n => {
+                        boardState[n.y][n.x] = 0; renderCell(n.x, n.y);
+                        document.querySelector(`.cell[data-x="${n.x}"][data-y="${n.y}"]`).classList.remove('cell-slash');
+                    });
                     resumeGame();
                 }, 600);
             }
             else if (skill === '旋風') {
+                updateStatusText(playerType, `🌪️ ${msgStr}扭曲了空間！`);
                 const ring = [{dx:0,dy:-1},{dx:1,dy:-1},{dx:1,dy:0},{dx:1,dy:1},{dx:0,dy:1},{dx:-1,dy:1},{dx:-1,dy:0},{dx:-1,dy:-1}];
                 let validPos = [], origVals = [], origIcons = [];
                 ring.forEach(offset => {
@@ -576,61 +447,9 @@
             }
         }
 
-        // ===== 提前平手與勝負判定 =====
-        function checkDrawPossible() {
-            // 1. 滿盤檢測：如果連 1 個空位都沒有，玩家根本無法施放技能(會被 return 擋下)，絕對死鎖平手
-            let emptyCount = 0;
-            for(let y=0; y<8; y++) for(let x=0; x<8; x++) if(boardState[y][x] === 0) emptyCount++;
-            if (emptyCount === 0) return true;
-
-            // 2. 技能檢測：如果還有空位，且雙方任一方還有技能，盤面就有可能被改變，不判定平手
-            let mySkillsLeft = document.querySelectorAll(`.${myRole === 1 ? 'player' : 'boss'}-skill:not(.used)`).length;
-            let enemySkillsLeft = document.querySelectorAll(`.${myRole === 1 ? 'boss' : 'player'}-skill:not(.used)`).length;
-            if (mySkillsLeft > 0 || enemySkillsLeft > 0) return false;
-
-            // 3. 幾何死鎖掃描（升級版）：不僅判斷路線是否乾淨，還計算剩餘步數極限
-            let totalEmpty = 0;
-            for(let y=0; y<8; y++) for(let x=0; x<8; x++) if(boardState[y][x] === 0) totalEmpty++;
-
-            // 計算雙方在遊戲結束前，極限還能分配到幾步
-            let maxMovesP1 = Math.ceil(totalEmpty / 2);
-            let maxMovesP2 = Math.floor(totalEmpty / 2);
-            if (currentPlayer === 2) {
-                maxMovesP1 = Math.floor(totalEmpty / 2);
-                maxMovesP2 = Math.ceil(totalEmpty / 2);
-            }
-
-            const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
-            for (let y = 0; y < 8; y++) {
-                for (let x = 0; x < 8; x++) {
-                    for (let d of dirs) {
-                        let p1CanWin = true, p2CanWin = true;
-                        let p1Need = 0, p2Need = 0; // 紀錄要填滿這條線，自己還差幾步
-
-                        for (let s = 0; s < 5; s++) {
-                            let nx = x + d[0]*s, ny = y + d[1]*s;
-                            if (nx>=0 && nx<8 && ny>=0 && ny<8) {
-                                if (boardState[ny][nx] === 1) {
-                                    p2CanWin = false; // 被動物聯軍擋住，老闆無法贏
-                                } else if (boardState[ny][nx] === 2) {
-                                    p1CanWin = false; // 被老闆擋住，動物聯軍無法贏
-                                } else {
-                                    // 是空格，雙方如果要贏這條線，都需要多花一步來填
-                                    p1Need++;
-                                    p2Need++;
-                                }
-                            } else {
-                                p1CanWin = false; p2CanWin = false;
-                            }
-                        }
-                        
-                        // 關鍵防漏：不僅不能被對手擋住，還必須「自己的剩餘步數大於或等於填滿這條線所需的步數」
-                        if (p1CanWin && p1Need <= maxMovesP1) return false; 
-                        if (p2CanWin && p2Need <= maxMovesP2) return false; 
-                    }
-                }
-            }
-            return true; // 絕對平手 
+        function updateStatusText(playerType, text) {
+            if(playerType === 1) document.getElementById('player-status').innerText = text;
+            else document.getElementById('boss-status').innerText = text;
         }
 
         function checkGlobalWin() {
@@ -653,71 +472,113 @@
 
         function handleGameOver(winner) {
             gameActive = false;
-            let msg = "";
-            if (winner === 1) msg = "🎉 動物聯軍勝利！擊敗慣老闆！";
-            else if (winner === 2) msg = "💀 萃比老闆獲勝！被死死壓榨...";
-            else msg = "🤝 盤面完全死鎖，無路可退平手！"; 
+            let msg = winner === 1 ? "🎉 動物聯軍勝利！擊敗慣老闆！" : "💀 萃比老闆獲勝！被死死壓榨...";
             
             document.getElementById('boss-status').innerText = msg;
-            document.getElementById('boss-status').style.color = winner === 1 ? 'var(--player-color)' : (winner === 2 ? 'var(--boss-color)' : '#7f8c8d');
+            document.getElementById('boss-status').style.color = winner === 1 ? 'var(--player-color)' : 'var(--boss-color)';
             document.getElementById('player-status').innerText = "遊戲結束";
             
-            // 翻開所有底牌
-            document.querySelectorAll('.boss-skill, .player-skill').forEach(btn => {
+            // 【修復 1】遊戲結束時，強制翻開老闆所有未使用的底牌
+            document.querySelectorAll('.boss-skill').forEach(btn => {
                 let trueSkill = btn.dataset.trueskill;
-                if(trueSkill) {
-                    btn.innerText = `${skillIcons[trueSkill]} ${trueSkill}`;
-                    if(!btn.classList.contains('used')) btn.style.opacity = '0.7';
+                btn.innerText = `${skillIcons[trueSkill]} ${trueSkill}`;
+                // 如果這招沒用到，加點透明度讓玩家知道這是剩餘手牌
+                if(!btn.classList.contains('used')) {
+                    btn.style.opacity = '0.7';
                 }
             });
+
+            // 【修復 2】改用 flex 讓按鈕正常並排顯示
             document.getElementById('endgame-buttons').style.display = 'flex';
         }
 
         function endTurn() {
-            if(gameMode === 'PVP' && myRole !== 1) {
-                currentPlayer = currentPlayer === 1 ? 2 : 1; updateTurnText(); return;
-            }
             let winner = checkGlobalWin();
-            if(winner !== 0) {
-                if(gameMode === 'PVP') conn.send({ type: 'SYNC_WIN', winner: winner });
-                return handleGameOver(winner);
-            }
-            if(checkDrawPossible()) {
-                if(gameMode === 'PVP') conn.send({ type: 'SYNC_DRAW' });
-                return handleGameOver(0);
-            }
-            currentPlayer = currentPlayer === 1 ? 2 : 1;
+            if(winner !== 0) return handleGameOver(winner);
+            currentPlayer = currentPlayer === 'Player' ? 'AI' : 'Player';
             updateTurnText();
-            if(gameMode === 'AI' && currentPlayer === 2) setTimeout(aiBrain, 800);
+            if(currentPlayer === 'AI') setTimeout(aiBrain, 800);
         }
 
         function resumeGame() {
+            let winner = checkGlobalWin();
+            if(winner !== 0) return handleGameOver(winner);
             gameActive = true; 
             endTurn();
         }
 
-        // ===== AI 核心 =====
         function aiBrain() {
             if (!gameActive) return;
             let bestScore = -1, bestMoves = [];
+            let maxEnemyScore = -1, bestEnemyMoves = [];
+
+            // 1. 掃描全局，精準計算攻擊與防禦價值
             for (let y = 0; y < 8; y++) {
                 for (let x = 0; x < 8; x++) {
                     if (boardState[y][x] === 0 && !shieldState[y][x]) {
-                        let totalScore = evaluateCell(x, y, 2) + (evaluateCell(x, y, 1) * 1.2);
-                        if (totalScore > bestScore) { bestScore = totalScore; bestMoves = [{x, y}]; } 
-                        else if (totalScore === bestScore) { bestMoves.push({x, y}); }
+                        let aiAttack = evaluateCell(x, y, 2);
+                        let playerThreat = evaluateCell(x, y, 1);
+                        
+                        let totalScore = 0;
+                        // 必勝與必敗的極端防護邏輯
+                        if (aiAttack >= 10000000) totalScore = 20000000; // AI 能贏絕對優先
+                        else if (playerThreat >= 10000000) totalScore = 15000000; // 必須擋玩家必勝
+                        else totalScore = aiAttack + (playerThreat * 1.2); 
+                        
+                        if (totalScore > bestScore) { 
+                            bestScore = totalScore; 
+                            bestMoves = [{x, y, aiAttack, playerThreat}]; 
+                        } else if (totalScore === bestScore) { 
+                            bestMoves.push({x, y, aiAttack, playerThreat}); 
+                        }
+
+                        // 記錄玩家最具威脅的座標 (用來丟破壞型技能)
+                        if (playerThreat > maxEnemyScore) {
+                            maxEnemyScore = playerThreat;
+                            bestEnemyMoves = [{x, y}];
+                        } else if (playerThreat === maxEnemyScore) {
+                            bestEnemyMoves.push({x, y});
+                        }
                     }
                 }
             }
+
             if (bestMoves.length > 0) {
                 let move = bestMoves[Math.floor(Math.random() * bestMoves.length)];
                 let uncastSkills = Array.from(document.querySelectorAll('.boss-skill:not(.used)'));
-                
-                if (uncastSkills.length > 0 && Math.random() < 0.3) {
-                    let skillBtn = uncastSkills[Math.floor(Math.random() * uncastSkills.length)];
-                    let skillName = skillBtn.dataset.trueskill;
-                    castSpecialSkill(move.x, move.y, skillName, 2);
-                } else {
+                let skillCasted = false;
+
+                // 2. 智能技能釋放邏輯 (取代原本的隨機亂丟)
+                if (uncastSkills.length > 0) {
+                    let availableSkills = uncastSkills.map(btn => btn.dataset.trueskill);
+                    
+                    // 情境 A：玩家出現「活三」以上的威脅，用破壞型技能砸他
+                    if (maxEnemyScore >= 50000) { 
+                        let target = bestEnemyMoves[Math.floor(Math.random() * bestEnemyMoves.length)];
+                        let destructiveSkills = availableSkills.filter(s => ['小刀', '魔法杖', '皇冠'].includes(s));
+                        if (destructiveSkills.length > 0) {
+                            let chosenSkill = destructiveSkills[Math.floor(Math.random() * destructiveSkills.length)];
+                            castSpecialSkill(target.x, target.y, chosenSkill, 2);
+                            skillCasted = true;
+                        }
+                    }
+                    
+                    // 情境 B：AI 下了一手高分好棋（活三或衝四），用盾牌保護起來
+                    if (!skillCasted && move.aiAttack >= 50000 && availableSkills.includes('盾牌')) {
+                        castSpecialSkill(move.x, move.y, '盾牌', 2); 
+                        skillCasted = true;
+                    }
+
+                    // 情境 C：無強烈威脅時，偶爾放技能干擾 (15%機率)
+                    if (!skillCasted && Math.random() < 0.15) {
+                        let randomSkill = availableSkills[Math.floor(Math.random() * availableSkills.length)];
+                        castSpecialSkill(move.x, move.y, randomSkill, 2); 
+                        skillCasted = true;
+                    }
+                }
+
+                // 3. 如果沒有使用技能，正常下棋
+                if (!skillCasted) {
                     placePiece(move.x, move.y, 2);
                     gameActive = true; 
                     endTurn();
