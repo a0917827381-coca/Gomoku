@@ -233,8 +233,13 @@
                 }
             }
 
-            const aiPool = ['皇冠', '皇冠', '小刀', '小刀', '旋風', '魔法杖']; 
-            aiDraft = aiPool.sort(() => 0.5 - Math.random()).slice(0, 3);
+            const allSkills = ['皇冠', '魔法杖', '盾牌', '小刀', '旋風'];
+            let shuffled = [...allSkills];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            aiDraft = shuffled.slice(0, 3);
         }
 
         function selectPiece(piece) {
@@ -543,41 +548,51 @@
                 }
             }
 
+            // ... (前面算分數的雙層 for 迴圈保持不變) ...
+
             if (bestMoves.length > 0) {
                 let move = bestMoves[Math.floor(Math.random() * bestMoves.length)];
                 let uncastSkills = Array.from(document.querySelectorAll('.boss-skill:not(.used)'));
                 let skillCasted = false;
 
-                // 2. 智能技能釋放邏輯 (取代原本的隨機亂丟)
+                // ★ 新增這段：強制扣除 AI 技能的執行器
+                const executeAISkill = (skillName, tx, ty) => {
+                    let btn = uncastSkills.find(b => b.dataset.trueskill === skillName);
+                    if (btn) {
+                        btn.classList.add('used'); // 物理鎖死按鈕
+                        btn.innerText = `${skillIcons[skillName]} ${skillName}`; // 翻開底牌
+                    }
+                    castSpecialSkill(tx, ty, skillName, 2);
+                    skillCasted = true;
+                };
+
+                // 2. 智能技能釋放邏輯
                 if (uncastSkills.length > 0) {
                     let availableSkills = uncastSkills.map(btn => btn.dataset.trueskill);
                     
-                    // 情境 A：玩家出現「活三」以上的威脅，用破壞型技能砸他
+                    // 情境 A
                     if (maxEnemyScore >= 50000) { 
                         let target = bestEnemyMoves[Math.floor(Math.random() * bestEnemyMoves.length)];
                         let destructiveSkills = availableSkills.filter(s => ['小刀', '魔法杖', '皇冠'].includes(s));
                         if (destructiveSkills.length > 0) {
                             let chosenSkill = destructiveSkills[Math.floor(Math.random() * destructiveSkills.length)];
-                            castSpecialSkill(target.x, target.y, chosenSkill, 2);
-                            skillCasted = true;
+                            executeAISkill(chosenSkill, target.x, target.y); // ★ 改用執行器
                         }
                     }
                     
-                    // 情境 B：AI 下了一手高分好棋（活三或衝四），用盾牌保護起來
+                    // 情境 B
                     if (!skillCasted && move.aiAttack >= 50000 && availableSkills.includes('盾牌')) {
-                        castSpecialSkill(move.x, move.y, '盾牌', 2); 
-                        skillCasted = true;
+                        executeAISkill('盾牌', move.x, move.y); // ★ 改用執行器
                     }
 
-                    // 情境 C：無強烈威脅時，偶爾放技能干擾 (15%機率)
+                    // 情境 C
                     if (!skillCasted && Math.random() < 0.15) {
                         let randomSkill = availableSkills[Math.floor(Math.random() * availableSkills.length)];
-                        castSpecialSkill(move.x, move.y, randomSkill, 2); 
-                        skillCasted = true;
+                        executeAISkill(randomSkill, move.x, move.y); // ★ 改用執行器
                     }
                 }
 
-                // 3. 如果沒有使用技能，正常下棋
+                // 3. 正常下棋
                 if (!skillCasted) {
                     placePiece(move.x, move.y, 2);
                     gameActive = true; 
@@ -590,16 +605,41 @@
             let score = 0;
             [ [1, 0], [0, 1], [1, 1], [1, -1] ].forEach(dir => {
                 let count = 1, blockCount = 0;
+                // 正向掃描
                 for (let step = 1; step <= 4; step++) {
                     let nx = cx + dir[0]*step, ny = cy + dir[1]*step;
-                    if (nx<0||nx>=8||ny<0||ny>=8||boardState[ny][nx]!==playerType) { if (nx<0||nx>=8||ny<0||ny>=8||boardState[ny][nx]!==0) blockCount++; break; } count++;
+                    if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8 || boardState[ny][nx] !== playerType) { 
+                        if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8 || boardState[ny][nx] !== 0) blockCount++; 
+                        break; 
+                    } 
+                    count++;
                 }
+                // 反向掃描
                 for (let step = 1; step <= 4; step++) {
                     let nx = cx - dir[0]*step, ny = cy - dir[1]*step;
-                    if (nx<0||nx>=8||ny<0||ny>=8||boardState[ny][nx]!==playerType) { if (nx<0||nx>=8||ny<0||ny>=8||boardState[ny][nx]!==0) blockCount++; break; } count++;
+                    if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8 || boardState[ny][nx] !== playerType) { 
+                        if (nx < 0 || nx >= 8 || ny < 0 || ny >= 8 || boardState[ny][nx] !== 0) blockCount++; 
+                        break; 
+                    } 
+                    count++;
                 }
-                if (count>=5) score+=100000; else if (count===4&&blockCount===0) score+=10000; else if (count===4&&blockCount===1) score+=1000; else if (count===3&&blockCount===0) score+=1000; else if (count===3&&blockCount===1) score+=100; else if (count===2&&blockCount===0) score+=100; else if (count===2&&blockCount===1) score+=10; else score+=1; 
-            }); return score;
+                
+                // 權重倍率大幅拉開，迫使 AI 遵守五子棋基本定石
+                if (count >= 5) score += 10000000; // 連五 (必勝)
+                else if (count === 4 && blockCount === 0) score += 1000000; // 活四 (下一手必勝)
+                else if (count === 4 && blockCount === 1) score += 100000; // 衝四 (對手必須擋)
+                else if (count === 3 && blockCount === 0) score += 50000; // 活三
+                else if (count === 3 && blockCount === 1) score += 1000;  // 眠三
+                else if (count === 2 && blockCount === 0) score += 500;   // 活二
+                else if (count === 2 && blockCount === 1) score += 50;    // 眠二
+                else score += 1; 
+            }); 
+            
+            // 增加「向心力」：優先下在棋盤中央區域，避免 AI 在邊角無意義掛機
+            let centerDist = Math.abs(cx - 3.5) + Math.abs(cy - 3.5);
+            score += (10 - centerDist);
+
+            return score;
         }
     </script>
 </body>
